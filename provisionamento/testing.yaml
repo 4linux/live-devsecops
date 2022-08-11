@@ -76,7 +76,7 @@
 
     - name: Clone Golismero
       ansible.builtin.git:
-        repo: 'clone https://github.com/golismero/golismero.git'
+        repo: 'https://github.com/golismero/golismero.git'
         dest: /opt/golismero
 
     - name: Installa Golismero

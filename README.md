@@ -46,8 +46,8 @@ Nesse laboratórios, que está centralizado no arquivo [Vagrantfile][8], serão 
 
 Nome       | vCPUs | Memoria RAM | IP            | S.O.           | Script de Provisionamento
 ---------- |:-----:|:-----------:|:-------------:|:---------------:| -----------------------------
-testing    | 1     | 2024MB      | 192.168.56.50 | almalinux/8     | [provisionamento/testing.yaml](provisionamento/testing.yaml)
-automation | 1     | 2024MB      | 192.168.56.60 | almalinux/8     | [provisionamento/automation.yaml](provisionamento/automation.yaml)
+testing    | 1     | 2048MB      | 192.168.56.50 | almalinux/8     | [provisionamento/testing.yaml](provisionamento/testing.yaml)
+automation | 1     | 2048MB      | 192.168.56.60 | almalinux/8     | [provisionamento/automation.yaml](provisionamento/automation.yaml)
 
 ### Criação do Laboratório
 
