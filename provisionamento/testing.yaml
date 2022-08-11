@@ -1,0 +1,112 @@
+- hosts: all
+  become: yes
+  become_user: root
+  become_method: sudo
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  tasks:
+    - name: Garantindo /etc/hosts
+      lineinfile:
+        path: /etc/hosts
+        line: "{{ item }}"
+      with_items:
+        - 192.168.56.50 testing testing.4labs.devsecops
+        - 192.168.56.60 automation automation.4labs.devsecops
+
+    - name: Ajustar PATH
+      blockinfile:
+        path: /etc/profile
+        block: "export PATH=$PATH:/usr/local/bin"
+        state: present
+
+    - name: Instala Horusec CLI
+      shell: curl -fsSL https://raw.githubusercontent.com/ZupIT/horusec/main/deployments/scripts/install.sh | bash -s latest
+
+    - name: Configura hostname da VM
+      hostname:
+        name: testing
+
+    - name: Instalando dependencias
+      yum:
+        name: "{{ packages }}"
+        state: present
+        update_cache: yes
+      vars:
+        packages:
+        - epel-release
+        - python3
+        - python3-pip
+        - git
+        - wget
+        - vim
+        - net-tools
+        - unzip
+        - java-11-openjdk-devel
+        - jq
+        - oniguruma
+        - python27
+        - git
+        - perl
+        - nmap
+        - sslscan
+
+    - name: Download do repositorio do Jenkins
+      get_url:
+        url: https://pkg.jenkins.io/redhat/jenkins.repo
+        dest: /etc/yum.repos.d/jenkins.repo
+        validate_certs: False
+      become: true
+
+    - name: Importar chave GPG do Jenkins
+      rpm_key:
+        state: present
+        key: https://pkg.jenkins.io/redhat/jenkins.io.key
+        validate_certs: False
+
+    - name: Instalar o Jenkins
+      yum:
+        name: jenkins
+        state: present
+
+    - name: Iniciar servico do Jenkins
+      service:
+        name: jenkins
+        state: started
+        enabled: yes
+
+    - name: Clone Golismero
+      ansible.builtin.git:
+        repo: 'clone https://github.com/golismero/golismero.git'
+        dest: /opt/golismero
+
+    - name: Installa Golismero
+      shell: |
+        ln -s /usr/bin/python2.7 /usr/bin/python
+        pip install -r requirements.txt
+        pip install -r requirements_unix.txt
+        ln -s ${PWD}/golismero.py /usr/bin/golismero
+        chmod +x ${PWD}/golismero.py
+        chown jenkins: ${PWD}/golismero.py
+      args:
+        chdir: /opt/golismero
+
+    - name: Criando o arquivo sudo para o usuario jenkins
+      copy:
+        src: files/jenkins
+        dest: /etc/sudoers.d
+        mode: 0644
+
+    - name: Criando o arquivo get-pip.py
+      copy:
+        src: files/get-pip.py
+        dest: /tmp
+        mode: 0644
+
+    - name: Atualiza o pip com Python 3
+      shell: python3 get-pip.py
+      args:
+        chdir: /tmp
+
+    - name: Atualiza o timezone
+      shell: timedatectl set-timezone America/Sao_Paulo
+      args:

@@ -1,0 +1,123 @@
+- hosts: all
+  become: yes
+  become_user: root
+  become_method: sudo
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  tasks:
+    - name: Garantindo /etc/hosts
+      lineinfile:
+        path: /etc/hosts
+        line: "{{ item }}"
+      with_items:
+        - 192.168.56.50 testing testing.4labs.devsecops
+        - 192.168.56.60 automation automation.4labs.devsecops
+
+    - name: Criando variaveis Horusec
+      lineinfile:
+        path: /etc/profile
+        line: "{{ item }}"
+      with_items:
+        - export REACT_APP_HORUSEC_ENDPOINT_API="http:\\/\\/192.168.56.60:8000"
+        - export REACT_APP_HORUSEC_ENDPOINT_ANALYTIC="http:\\/\\/192.168.56.60:8005"
+        - export REACT_APP_HORUSEC_ENDPOINT_CORE="http:\\/\\/192.168.56.60:8003"
+        - export REACT_APP_HORUSEC_ENDPOINT_WEBHOOK="http:\\/\\/192.168.56.60:8004"
+        - export REACT_APP_HORUSEC_ENDPOINT_AUTH="http:\\/\\/192.168.56.60:8006"
+        - export REACT_APP_HORUSEC_ENDPOINT_VULNERABILITY="http:\\/\\/192.168.56.60:8001"
+
+    - name: Ajustar PATH
+      blockinfile:
+        path: /etc/profile
+        block: "export PATH=$PATH:/usr/local/bin"
+        state: present
+
+    - name: Instala Horusec CLI
+      shell: curl -fsSL https://raw.githubusercontent.com/ZupIT/horusec/main/deployments/scripts/install.sh | bash -s latest        
+
+    - name: Configura hostname da VM
+      hostname:
+        name: automation
+
+    - name: Adicionar usuario jenkins
+      user:
+        name: jenkins
+        shell: /bin/bash
+        password : $6$Qihg5kc2fOQq5wl2$HC7uF9wf/Ng0GN3djBWoQpcn2sjVUfOecJ/6AsroH.ZKm.VBk9PLY/bnJtp2JfF//StRO.ptSnb2LQA3/N42i/
+
+    - name: Instalando pacotes de dependencias para o curso
+      yum:
+        name: "{{ packages }}"
+        state: present
+        update_cache: yes
+      vars:
+        packages:
+        - epel-release
+        - python3
+        - python3-pip
+        - git
+        - wget
+        - vim
+        - net-tools
+        - unzip
+        - java-11-openjdk-devel
+        - make
+
+    - name: Clone Horusec
+      ansible.builtin.git:
+        repo: 'https://github.com/ZupIT/horusec-platform.git'
+        dest: /opt/horusec
+
+    - name: Download do arquivo docker-ce.repo
+      get_url:
+        url: https://download.docker.com/linux/centos/docker-ce.repo
+        dest: /etc/yum.repos.d/docker-ce.repo
+        mode: 0644
+
+    - name: Instalando pacotes do Docker
+      yum:
+        name: "{{ packages }}"
+        state: present
+        update_cache: yes
+      vars:
+        packages:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+
+    - name: Iniciar servico do Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Instala docker-compose
+      get_url: 
+        url : https://github.com/docker/compose/releases/download/v2.9.0/docker-compose-linux-x86_64
+        dest: /usr/bin/docker-compose
+        mode: 'u+x,g+x'
+
+    - name: Adiciona o usuario jenkins no grupo docker
+      user:
+        name: jenkins
+        group: docker
+
+    - name: Criando o arquivo sudo para o usuario jenkins
+      copy:
+        src: files/jenkins
+        dest: /etc/sudoers.d
+        mode: 0644
+
+    - name: Criando o arquivo get-pip.py
+      copy:
+        src: files/get-pip.py
+        dest: /tmp
+        mode: 0644
+
+    - name: Atualiza o pip com Python 3
+      shell: python3 get-pip.py
+      args:
+        chdir: /tmp
+
+    - name: Atualiza o timezone
+      shell: timedatectl set-timezone America/Sao_Paulo
+      args:
